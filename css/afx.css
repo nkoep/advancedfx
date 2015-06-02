@@ -1,0 +1,87 @@
+@charset "US-ASCII";
+
+/* advancedfx.org  */
+
+.afx_header {
+	border-color:gray;
+	border-style:solid;
+	border-width:1px;
+	color:black;
+	font-family:Arial;
+	font-size:16px;
+	display:block;
+}
+
+.afx_header table td {
+	vertical-align:middle;
+}
+
+
+#afx_logo_cell {
+	line-height:0px;
+}
+
+#afx_logo_cell img {
+	border:none;
+	height:64px;
+	margin-right:12px;
+}
+
+.afx_header td,.afx_header th {
+/*	border:1px solid yellow; */
+	padding:0px;
+}
+
+.afx_header a:link { color:blue; text-decoration:underline; }
+.afx_header a:visited { color:navy; text-decoration:underline; }
+.afx_header a:active,.afx_header a:focus,.afx_header a:hover { color:blue; text-decoration:underline; background:#E0E0FF; }
+
+.afx_bg_dark {
+	background:silver;
+}
+.afx_bg_dark a:link { color:blue; text-decoration:underline; }
+.afx_bg_dark a:visited { color:navy; text-decoration:underline; }
+.afx_bg_dark a:active,.afx_bg_dark a:focus,.afx_bg_dark a:hover { color:blue; text-decoration:underline; background:#B0B0CF; }
+
+.afx_footer img {
+	border:none;
+}
+
+.afx_current_page {
+	font-weight:bold;
+}
+
+body {
+	padding:0px;
+}
+
+body {
+	font-family:Arial;
+	min-width:600px;
+}
+
+a:link { color:blue; text-decoration:underline; }
+a:visited { color:navy; text-decoration:underline; }
+a:active,a:focus,a:hover { color:blue; text-decoration:underline; background:#E0E0FF; }
+
+.box  {
+	border-color:gray;
+	border-style:solid;
+	border-width:1px;
+	display:block;
+}
+.box_header {
+	background:silver;
+	padding:4px;
+}
+.box_content {
+	padding:4px;
+}
+
+.box_bg {
+	background:silver;
+}
+
+.box_bg a:link { color:blue; text-decoration:underline; }
+.box_bg a:visited { color:navy; text-decoration:underline; }
+.box_bg a:active,.box_bg a:focus,.box_bg a:hover { color:blue; text-decoration:underline; background:#B0B0CF; }
