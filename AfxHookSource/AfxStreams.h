@@ -42,6 +42,11 @@
 #include <mutex>
 #include <condition_variable>
 
+enum CaptureFormat
+{
+	CF_Tga,
+	CF_Bmp
+};
 
 class CAfxStreams;
 
@@ -160,7 +165,7 @@ public:
 	void Release(void);
 
 	bool AutoRealloc(ImageBufferPixelFormat pixelFormat, int width, int height);
-	bool WriteToFile(const std::wstring & path, bool ifZip, bool ifBmpNotTga) const;
+	bool WriteToFile(const std::wstring & path, bool ifZip, CaptureFormat captureFormat) const;
 
 	/// <summary>
 	/// Resizes and merges this BGR format buffer with the blue component of
@@ -2196,18 +2201,20 @@ class CAfxStreams
 {
 public:
 	CAfxImageBufferPool ImageBufferPool;
-
-	bool m_FormatBmpAndNotTga;
-
+	
 	CAfxStreams();
 	~CAfxStreams();
+
+	CaptureFormat GetCaptureFormat() const 
+	{
+		return m_CaptureFormat;
+	}
 
 	/// <summary>Carry out initalization that cannot be done in DllMain</summary>
 	static void AfxStreamsInit(void);
 
 	/// <summary>Carry out shutdown that cannot be done in DllMain</summary>
 	static void AfxStreamsShutdown(void);
-
 
 	void OnMaterialSystem(SOURCESDK::IMaterialSystem_csgo * value);
 	void OnAfxBaseClientDll(IAfxBaseClientDll * value);
@@ -2400,6 +2407,7 @@ private:
 	};
 
 	std::string m_RecordName;
+	CaptureFormat m_CaptureFormat;
 	bool m_PresentRecordOnScreen;
 	bool m_StartMovieWav;
 	bool m_StartMovieWavUsed;

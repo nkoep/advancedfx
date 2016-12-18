@@ -882,7 +882,8 @@ void CAfxSingleStream::CaptureEnd(std::wstring const * outPath)
 
 			WriteFile_EnterScope();
 			
-			if (!buffer->WriteToFile(*outPath, (captureType == CAfxRenderViewStream::SCT_Depth24ZIP || captureType == CAfxRenderViewStream::SCT_DepthFZIP), g_AfxStreams.m_FormatBmpAndNotTga))
+			bool doZip = captureType == CAfxRenderViewStream::SCT_Depth24ZIP || captureType == CAfxRenderViewStream::SCT_DepthFZIP;
+			if (!buffer->WriteToFile(*outPath, doZip, g_AfxStreams.GetCaptureFormat()))
 			{
 				Tier0_Warning("AFXERROR: Failed writing image for stream %s\n.", this->StreamName_get());
 			}
@@ -1036,7 +1037,7 @@ void CAfxTwinStream::CaptureEnd(std::wstring const * outPath)
 
 			WriteFile_EnterScope();
 
-			if (!bufferA->WriteToFile(*outPath, (captureType == CAfxRenderViewStream::SCT_Depth24ZIP || captureType == CAfxRenderViewStream::SCT_DepthFZIP), g_AfxStreams.m_FormatBmpAndNotTga))
+			if (!bufferA->WriteToFile(*outPath, (captureType == CAfxRenderViewStream::SCT_Depth24ZIP || captureType == CAfxRenderViewStream::SCT_DepthFZIP), g_AfxStreams.GetCaptureFormat()))
 			{
 				Tier0_Warning("AFXERROR: Failed writing image for stream %s\n.", this->StreamName_get());
 			}
@@ -4151,7 +4152,7 @@ CAfxStreams::CAfxStreams()
 , m_NewMatForceTonemapScale(1.0f)
 , m_ColorModulationOverride(false)
 , m_BlendOverride(false)
-, m_FormatBmpAndNotTga(false)
+, m_CaptureFormat(CaptureFormat::CF_Tga)
 , m_Current_View_Render_ThreadId(0)
 //, m_RgbaRenderTarget(0)
 , m_RenderTargetDepthF(0)
@@ -4352,18 +4353,22 @@ float CAfxStreams::Console_MatForceTonemapScale_get()
 
 void CAfxStreams::Console_RecordFormat_set(const char * value)
 {
-	if(!_stricmp(value, "bmp"))
-		m_FormatBmpAndNotTga = true;
-	else
-	if(!_stricmp(value, "tga"))
-		m_FormatBmpAndNotTga = false;
+	if (!_stricmp(value, "bmp"))
+		m_CaptureFormat = CaptureFormat::CF_Bmp;
+	else if(!_stricmp(value, "tga"))
+		m_CaptureFormat = CaptureFormat::CF_Tga;
 	else
 		Tier0_Warning("Error: Invalid format %s\n.", value);
 }
 
 const char * CAfxStreams::Console_RecordFormat_get()
 {
-	return m_FormatBmpAndNotTga ? "bmp" : "tga";
+	const char *format;
+	if (m_CaptureFormat == CaptureFormat::CF_Bmp)
+		format = "bmp";
+	else  // CaptureFormat::CF_Tga
+		format = "tga";
+	return format;
 }
 
 void CAfxStreams::Console_Record_Start()
@@ -6155,7 +6160,7 @@ void CAfxStreams::DebugDump(IAfxMatRenderContextOrg * ctxp)
 		// Write to disk:
 		{
 			std::wstring path = L"debug.tga";
-			if(!buffer->WriteToFile(path, false, false))
+			if(!buffer->WriteToFile(path, false, CaptureFormat::CF_Tga))
 			{
 				Tier0_Warning("CAfxStreams::DebugDump:Failed writing image for frame #%i\n.", m_Frame);
 			}
@@ -6392,7 +6397,12 @@ IAfxMatRenderContextOrg * CAfxStreams::CaptureStreamToBuffer(CAfxRenderViewStrea
 
 	if (last)
 	{
-		captureTarget->QueueCaptureEnd(ctxp, m_TakeDir, m_Frame, (captureType == CAfxRenderViewStream::SCT_Depth24 || captureType == CAfxRenderViewStream::SCT_Depth24ZIP || captureType == CAfxRenderViewStream::SCT_DepthF || captureType == CAfxRenderViewStream::SCT_DepthFZIP) ? L".exr" : (m_FormatBmpAndNotTga ? L".bmp" : L".tga"));
+		bool useExr = (captureType == CAfxRenderViewStream::SCT_Depth24 ||
+					   captureType == CAfxRenderViewStream::SCT_Depth24ZIP ||
+					   captureType == CAfxRenderViewStream::SCT_DepthF ||
+					   captureType == CAfxRenderViewStream::SCT_DepthFZIP);
+		captureTarget->QueueCaptureEnd(ctxp, m_TakeDir, m_Frame, 
+									   useExr ? L".exr" : (m_CaptureFormat == CaptureFormat::CF_Bmp ? L".bmp" : L".tga"));
 	}
 
 	return ctxp;
@@ -6739,10 +6749,9 @@ bool CAfxImageBuffer::AutoRealloc(ImageBufferPixelFormat pixelFormat, int width,
 	return 0 != Buffer;
 }
 
-
-bool CAfxImageBuffer::WriteToFile(const std::wstring & path, bool ifZip, bool ifBmpNotTga) const
+bool CAfxImageBuffer::WriteToFile(const std::wstring & path, bool ifZip, CaptureFormat captureFormat) const
 {
-	if (IBPF_ZFloat == PixelFormat)
+	if (PixelFormat == IBPF_ZFloat)
 	{
 		return WriteFloatZOpenExr(
 			path.c_str(),
@@ -6755,20 +6764,28 @@ bool CAfxImageBuffer::WriteToFile(const std::wstring & path, bool ifZip, bool if
 		);
 	}
 
-	if (IBPF_A == PixelFormat)
+	unsigned char bpp;
+	unsigned char alphaBpp = 0;
+	bool grayscale = false;
+
+	if (PixelFormat == IBPF_A)
 	{
-		return ifBmpNotTga
-			? WriteRawBitmap((unsigned char*)Buffer, path.c_str(), Width, Height, 8, ImagePitch)
-			: WriteRawTarga((unsigned char*)Buffer, path.c_str(), Width, Height, 8, true, ImagePitch, 0)
-			;
+		bpp = 8;
+		grayscale = true;
+	}
+	else if (PixelFormat == IBPF_BGR)
+	{
+		bpp = 24;
+	}
+	else  // IBPF_BGRA
+	{
+		bpp = 32;
+		alphaBpp = 8;
 	}
 
-	bool isBgra = IBPF_BGRA == PixelFormat;
-
-	return ifBmpNotTga && !isBgra
-		? WriteRawBitmap((unsigned char*)Buffer, path.c_str(), Width, Height, 24, ImagePitch)
-		: WriteRawTarga((unsigned char*)Buffer, path.c_str(), Width, Height, isBgra ? 32 : 24, false, ImagePitch, isBgra ? 8 : 0)
-		;
+	if (captureFormat == CaptureFormat::CF_Bmp)
+		return WriteRawBitmap((unsigned char*)Buffer, path.c_str(), Width, Height, bpp, ImagePitch);
+	return WriteRawTarga((unsigned char*)Buffer, path.c_str(), Width, Height, bpp, grayscale, ImagePitch, alphaBpp);
 }
 
 bool CAfxImageBuffer::BgrMergeBlueToRgba(CAfxImageBuffer const * alphaBuffer)
