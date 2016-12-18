@@ -2,3 +2,6 @@
 /ipch
 /.vs
 /*.VC.*
+AfxHook/AfxHook.dat
+ilmbase-build
+openexr-build
